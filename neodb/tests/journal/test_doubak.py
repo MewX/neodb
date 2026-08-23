@@ -7,7 +7,7 @@ import pytest
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
 
-from catalog.models import Edition, IdType, Movie
+from catalog.models import Edition, ExternalResource, IdType, Movie
 from journal.exporters import NdjsonExporter
 from journal.importers import CsvImporter, DoubakImporter, NdjsonImporter
 from journal.models import (
@@ -507,7 +507,9 @@ class TestDoubakAgreesWithCsv:
                 ],
             }
         ]
-        journal = [{"type": "Tag", "name": t, "pinned": False} for t in self.tags]
+        journal: list[dict] = [
+            {"type": "Tag", "name": t, "pinned": False} for t in self.tags
+        ]
         journal += [
             {
                 "type": "TagMember",
@@ -655,9 +657,7 @@ class TestDoubakReadsNeodbsOwnArchive:
             ShelfType.COMPLETE, "a comment", 8, ["tagged"], 0, created_time=self.dt
         )
         Review.update_item_review(self.book, self.owner, "R", "body", visibility=0)
-        Note.objects.create(
-            item=self.book, owner=self.owner, content="n", visibility=0
-        )
+        Note.objects.create(item=self.book, owner=self.owner, content="n", visibility=0)
         collection = Collection.objects.create(
             owner=self.owner, title="C", brief="brief", visibility=0
         )
@@ -749,6 +749,19 @@ class TestDoubakReadsWhatDoubakWrites:
             localized_title=[{"lang": "en", "text": "Inception"}],
             primary_lookup_id_type=IdType.IMDB,
             primary_lookup_id_value="tt1375666",
+        )
+        # `Site.get_item()` resolves through an ExternalResource that is
+        # `ready` (metadata and scraped_time both set); creating a Movie with a
+        # primary_lookup_id does not make one, and without it the importer
+        # falls all the way through to fetching the page over the network.
+        # A catalogued item on a real instance always has this row.
+        ExternalResource.objects.create(
+            item=self.movie,
+            id_type=IdType.IMDB,
+            id_value="tt1375666",
+            url="https://www.imdb.com/title/tt1375666/",
+            metadata={"localized_title": [{"lang": "en", "text": "Inception"}]},
+            scraped_time=parse_datetime(OLD),
         )
         self.user = User.register(email="shapes@test.com", username="doubak_shapes")
         self.owner = self.user.identity
@@ -896,7 +909,10 @@ class TestDoubakReadsWhatDoubakWrites:
                         "summary": "",
                         "sensitive": False,
                         "tag": [],
-                        "source": {"content": "- 一\n- 二", "mediaType": "text/markdown"},
+                        "source": {
+                            "content": "- 一\n- 二",
+                            "mediaType": "text/markdown",
+                        },
                         "published": OLD,
                     },
                 }
