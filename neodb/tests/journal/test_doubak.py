@@ -416,14 +416,11 @@ class TestImportDoubakView:
 class TestDoubakAgreesWithCsv:
     """The same account, described twice, must land the same way.
 
-    Doubak can emit either format, and until now only the CSV one had been
-    imported for real (2026-08-20, 41 of 42 records). That makes CSV the
-    known-good path: any field where NDJSON lands differently is a verified
-    behaviour that changed when the format did, and none of the per-format
-    tests above would notice, because each only checks its own side.
-
-    Both archives are written from one description here, so the test cannot
-    drift into comparing two different accounts.
+    Only the CSV path has been imported for real, which makes it the
+    known-good side: a field that lands differently under NDJSON is a
+    verified behaviour that changed with the format, and neither format's
+    own tests would notice. Both archives are written from one description
+    so they cannot drift apart.
     """
 
     @pytest.fixture(autouse=True)
@@ -631,14 +628,12 @@ class TestDoubakAgreesWithCsv:
 
 @pytest.mark.django_db(databases="__all__")
 class TestDoubakReadsNeodbsOwnArchive:
-    """The strongest available statement about the format: whatever
-    ``NdjsonExporter`` writes, this importer reads.
+    """Whatever ``NdjsonExporter`` writes, this importer reads.
 
-    Every test above builds its archive by hand, which only ever proves that
-    the importer agrees with *this file's* idea of the shape. Running the real
-    exporter removes that circularity, and it exercises the ``_is_current``
-    override across every record type at once rather than the four the
-    hand-built cases reach.
+    The tests above build their archives by hand, which only proves the
+    importer agrees with this file's idea of the shape. Running the real
+    exporter removes that circularity and reaches every record type at once,
+    rather than the four the hand-built cases touch.
     """
 
     @pytest.fixture(autouse=True)
@@ -735,12 +730,10 @@ class TestDoubakReadsNeodbsOwnArchive:
 
 @pytest.mark.django_db(databases="__all__")
 class TestDoubakReadsWhatDoubakWrites:
-    """Shapes Doubak emits that NeoDB's own exporter does not, so nothing
-    upstream covers them.
+    """Shapes Doubak emits that ``NdjsonExporter`` does not.
 
-    Doubak has no ``updated`` stamp (Douban records when a mark was *made*, not
-    when it was last edited), fills ``ShelfLog`` metadata from broadcasts, and
-    leaves ``published`` off entirely for the marks Douban gave no date for.
+    It carries no ``updated`` stamp, fills ``ShelfLog`` metadata from Douban
+    broadcasts, and omits ``published`` for the marks Douban gave no date for.
     """
 
     @pytest.fixture(autouse=True)
@@ -750,18 +743,11 @@ class TestDoubakReadsWhatDoubakWrites:
             primary_lookup_id_type=IdType.IMDB,
             primary_lookup_id_value="tt1375666",
         )
-        # Site.get_item() resolves through an ExternalResource that is ready
-        # (metadata and scraped_time both set); creating a Movie with a
-        # primary_lookup_id does not make one, and without it the importer
-        # falls all the way through to fetching the page over the network.
-        #
-        # `preferred_model` is not decoration either. An IMDb id may name a
-        # film or a series, so IMDB has no DEFAULT_MODEL and
-        # match_and_link_item raises "no default preferred model specified"
-        # without it -- which parse_catalog swallows per entry, dropping the
-        # item silently. A resource NeoDB scraped itself always carries it
-        # (catalog/sites/imdb.py writes it from TMDB), so this is what a
-        # catalogued item looks like rather than a convenience.
+        # what a catalogued item looks like, not a convenience: get_item()
+        # needs a ready resource (metadata and scraped_time both set), which
+        # a primary_lookup_id alone does not create, and preferred_model
+        # decides the class -- an IMDb id may name a film or a series, so
+        # IMDB has no DEFAULT_MODEL to fall back on
         ExternalResource.objects.create(
             item=self.movie,
             id_type=IdType.IMDB,
@@ -960,8 +946,7 @@ class TestDoubakReadsWhatDoubakWrites:
 @pytest.mark.django_db(databases="__all__")
 class TestDoubakIsWiredIn:
     """The pieces with nothing between them to catch a mismatch: a migration
-    that was never written, a context key the template reads by name, a form
-    field the view reads by string."""
+    never written, a form field the view reads by string."""
 
     @pytest.fixture(autouse=True)
     def setup_data(self):

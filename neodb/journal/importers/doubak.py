@@ -10,28 +10,15 @@ from .ndjson import NdjsonImporter
 class DoubakImporter(NdjsonImporter):
     """Import a Douban archive produced by Doubak.
 
-    Three similar names meet here, so to be explicit: this carries **Douban**
-    data, captured by **Doubak**, and is unrelated to :class:`DoubanImporter`,
-    which reads a **Doufen** workbook. Same source account, different tools,
-    different file formats.
+    Three similar names meet here: this carries Douban data, captured by
+    Doubak (https://doubak.com), and is unrelated to :class:`DoubanImporter`,
+    which reads a Doufen workbook.
 
-    Doubak (https://doubak.com) captures a Douban account in the user's own
-    browser and writes the same ``journal.ndjson`` / ``catalog.ndjson`` archive
-    that :class:`NdjsonExporter` writes, so the records themselves are parsed by
-    :class:`NdjsonImporter` and nothing about the format is restated here.
-
-    What this importer adds is a choice about existing data. A Douban archive is
-    a second, independent record of the same account, so the user may want it to
-    defer to whatever is already on the shelf, or to replace it. ``MERGE`` is the
-    inherited rule -- the newer record wins -- and ``OVERWRITE`` applies every
-    record in the archive regardless of what is already there.
-
-    The distinction matters more here than it would for a NeoDB-to-NeoDB
-    migration. Douban stores current state only and stamps a mark with the day
-    it was *marked*, not the day it was last edited, so an archive of a
-    long-standing account is full of records that look older than a shelf entry
-    the user created here last week -- while still holding the comment and
-    rating they actually want.
+    The archive is the same NDJSON :class:`NdjsonExporter` writes, so
+    :class:`NdjsonImporter` parses it unchanged. What this adds is
+    ``OVERWRITE``: Douban stamps a mark with the day it was marked rather than
+    last edited, so an archive's records often look older than the shelf entry
+    they should still replace.
     """
 
     class Meta:
