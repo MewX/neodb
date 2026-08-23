@@ -750,17 +750,27 @@ class TestDoubakReadsWhatDoubakWrites:
             primary_lookup_id_type=IdType.IMDB,
             primary_lookup_id_value="tt1375666",
         )
-        # `Site.get_item()` resolves through an ExternalResource that is
-        # `ready` (metadata and scraped_time both set); creating a Movie with a
+        # Site.get_item() resolves through an ExternalResource that is ready
+        # (metadata and scraped_time both set); creating a Movie with a
         # primary_lookup_id does not make one, and without it the importer
         # falls all the way through to fetching the page over the network.
-        # A catalogued item on a real instance always has this row.
+        #
+        # `preferred_model` is not decoration either. An IMDb id may name a
+        # film or a series, so IMDB has no DEFAULT_MODEL and
+        # match_and_link_item raises "no default preferred model specified"
+        # without it -- which parse_catalog swallows per entry, dropping the
+        # item silently. A resource NeoDB scraped itself always carries it
+        # (catalog/sites/imdb.py writes it from TMDB), so this is what a
+        # catalogued item looks like rather than a convenience.
         ExternalResource.objects.create(
             item=self.movie,
             id_type=IdType.IMDB,
             id_value="tt1375666",
             url="https://www.imdb.com/title/tt1375666/",
-            metadata={"localized_title": [{"lang": "en", "text": "Inception"}]},
+            metadata={
+                "preferred_model": "Movie",
+                "localized_title": [{"lang": "en", "text": "Inception"}],
+            },
             scraped_time=parse_datetime(OLD),
         )
         self.user = User.register(email="shapes@test.com", username="doubak_shapes")
@@ -963,7 +973,10 @@ class TestDoubakIsWiredIn:
         from django.apps import apps
 
         assert apps.get_model("journal", "DoubakImporter") is DoubakImporter
-        choices = dict(Task._meta.get_field("type").choices)
+        # getattr rather than .choices: get_field is typed as returning
+        # Field | ForeignObjectRel and only one of those has the attribute
+        field = Task._meta.get_field("type")
+        choices = dict(getattr(field, "choices", None) or [])
         assert "journal.doubakimporter" in choices
 
     def test_the_data_page_renders_the_upload_form(self, client):
