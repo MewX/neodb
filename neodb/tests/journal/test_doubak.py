@@ -981,3 +981,79 @@ class TestDoubakIsWiredIn:
             user=self.user, file="x.zip", visibility=0, mode=7
         )
         assert importer.overwrite is False
+
+    def mark_with_comment(self, comment, updated=None):
+        content = {
+            "type": "Comment",
+            "content": comment,
+            "published": OLD,
+            "withRegardTo": self.url,
+        }
+        if updated:
+            content["updated"] = updated
+        return [
+            {
+                "type": "ShelfMember",
+                "metadata": {},
+                "content": {
+                    "type": "Status",
+                    "status": "complete",
+                    "published": OLD,
+                    "withRegardTo": self.url,
+                },
+            },
+            {"type": "Comment", "metadata": {}, "content": content},
+        ]
+
+    def test_an_edit_made_after_the_first_import_replays(self):
+        # Douban's marked_at is the day a mark was made and does not move when
+        # the comment is rewritten, so published is identical in both archives
+        # and updated is the only thing that can carry the edit.
+        self.run([{"id": self.url}], self.mark_with_comment("first", updated=OLD))
+        self.run([{"id": self.url}], self.mark_with_comment("second", updated=NEW))
+        assert Comment.objects.get(owner=self.owner, item=self.movie).text == "second"
+
+    def test_without_updated_the_same_edit_is_dropped(self):
+        # the control for the test above: this is what the exporter did before
+        # it emitted updated, and it fails silently -- the import reports
+        # success and the new comment is simply not there
+        self.run([{"id": self.url}], self.mark_with_comment("first"))
+        self.run([{"id": self.url}], self.mark_with_comment("second"))
+        assert Comment.objects.get(owner=self.owner, item=self.movie).text == "first"
+
+    def test_reimporting_an_unchanged_archive_changes_nothing(self):
+        # updated must not move when a record is merely observed again, or
+        # every import rewrites everything and stamps it with the import time
+        self.run([{"id": self.url}], self.mark_with_comment("only", updated=OLD))
+        before = Comment.objects.get(owner=self.owner, item=self.movie).edited_time
+        importer = self.run(
+            [{"id": self.url}], self.mark_with_comment("only", updated=OLD)
+        )
+        after = Comment.objects.get(owner=self.owner, item=self.movie)
+        assert after.text == "only"
+        assert after.edited_time == before
+        assert importer.metadata["skipped"] >= 1
+
+    def test_a_collection_keeps_its_identity_across_exports(self):
+        # import_collection matches on (owner, title, created_time), and
+        # created_time is published. A published that moved with every crawl
+        # would make the second import build a second collection of the same
+        # name rather than update the first.
+        def archive(updated):
+            return [
+                {
+                    "type": "Collection",
+                    "metadata": {},
+                    "content": {
+                        "name": "买过的",
+                        "content": "简介",
+                        "published": OLD,
+                        "updated": updated,
+                    },
+                    "items": [{"item": self.url, "metadata": {}}],
+                }
+            ]
+
+        self.run([{"id": self.url}], archive(OLD))
+        self.run([{"id": self.url}], archive(NEW))
+        assert Collection.objects.filter(owner=self.owner, title="买过的").count() == 1
