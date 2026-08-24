@@ -942,46 +942,6 @@ class TestDoubakReadsWhatDoubakWrites:
         assert m["processed"] == m["total"]
         assert m["imported"] == 1 and m["skipped"] == 1
 
-
-@pytest.mark.django_db(databases="__all__")
-class TestDoubakIsWiredIn:
-    """The pieces with nothing between them to catch a mismatch: a migration
-    never written, a form field the view reads by string."""
-
-    @pytest.fixture(autouse=True)
-    def setup_data(self):
-        self.user = User.register(email="wired@test.com", username="doubak_wired")
-
-    def test_the_proxy_model_and_task_type_are_migrated(self):
-        # a missing (or misnumbered) migration does not raise on its own --
-        # the task simply stores a type the database will not accept
-        from django.apps import apps
-
-        assert apps.get_model("journal", "DoubakImporter") is DoubakImporter
-        # getattr rather than .choices: get_field is typed as returning
-        # Field | ForeignObjectRel and only one of those has the attribute
-        field = Task._meta.get_field("type")
-        choices = dict(getattr(field, "choices", None) or [])
-        assert "journal.doubakimporter" in choices
-
-    def test_the_data_page_renders_the_upload_form(self, client):
-        # the form's action, its file input and both mode values are read by
-        # string in the view; a typo in the template silently posts a default
-        client.force_login(self.user, backend="mastodon.auth.OAuth2Backend")
-        body = client.get(reverse("users:data")).content.decode()
-        assert reverse("users:import_doubak") in body
-        assert 'name="import_mode"' in body
-        assert 'name="visibility"' in body
-        assert "doubak.com" in body
-
-    def test_an_out_of_range_mode_falls_back_to_merge(self):
-        # the view casts whatever the form posted; anything that is not
-        # OVERWRITE must be treated as the safe option, not as overwrite
-        importer = DoubakImporter.create(
-            user=self.user, file="x.zip", visibility=0, mode=7
-        )
-        assert importer.overwrite is False
-
     def mark_with_comment(self, comment, updated=None):
         content = {
             "type": "Comment",
@@ -1057,3 +1017,43 @@ class TestDoubakIsWiredIn:
         self.run([{"id": self.url}], archive(OLD))
         self.run([{"id": self.url}], archive(NEW))
         assert Collection.objects.filter(owner=self.owner, title="买过的").count() == 1
+
+
+@pytest.mark.django_db(databases="__all__")
+class TestDoubakIsWiredIn:
+    """The pieces with nothing between them to catch a mismatch: a migration
+    never written, a form field the view reads by string."""
+
+    @pytest.fixture(autouse=True)
+    def setup_data(self):
+        self.user = User.register(email="wired@test.com", username="doubak_wired")
+
+    def test_the_proxy_model_and_task_type_are_migrated(self):
+        # a missing (or misnumbered) migration does not raise on its own --
+        # the task simply stores a type the database will not accept
+        from django.apps import apps
+
+        assert apps.get_model("journal", "DoubakImporter") is DoubakImporter
+        # getattr rather than .choices: get_field is typed as returning
+        # Field | ForeignObjectRel and only one of those has the attribute
+        field = Task._meta.get_field("type")
+        choices = dict(getattr(field, "choices", None) or [])
+        assert "journal.doubakimporter" in choices
+
+    def test_the_data_page_renders_the_upload_form(self, client):
+        # the form's action, its file input and both mode values are read by
+        # string in the view; a typo in the template silently posts a default
+        client.force_login(self.user, backend="mastodon.auth.OAuth2Backend")
+        body = client.get(reverse("users:data")).content.decode()
+        assert reverse("users:import_doubak") in body
+        assert 'name="import_mode"' in body
+        assert 'name="visibility"' in body
+        assert "doubak.com" in body
+
+    def test_an_out_of_range_mode_falls_back_to_merge(self):
+        # the view casts whatever the form posted; anything that is not
+        # OVERWRITE must be treated as the safe option, not as overwrite
+        importer = DoubakImporter.create(
+            user=self.user, file="x.zip", visibility=0, mode=7
+        )
+        assert importer.overwrite is False
