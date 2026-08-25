@@ -155,8 +155,8 @@ class TestDoubakImportMode:
         assert Mark(self.owner, self.movie).shelf_type == ShelfType.COMPLETE
 
     def test_merge_still_applies_a_newer_record(self):
-        # merge is not "never touch what is there" -- a newer archive record
-        # wins, which is the inherited rule and must survive the subclass
+        """merge is not "never touch what is there" -- a newer archive record
+        wins, which is the inherited rule and must survive the subclass"""
         self.existing_mark(status=ShelfType.WISHLIST, published=OLD)
         self.run([self.shelf_member(status="complete", published=NEW)])
         assert Mark(self.owner, self.movie).shelf_type == ShelfType.COMPLETE
@@ -228,9 +228,9 @@ class TestDoubakImportMode:
     # -- notes -------------------------------------------------------------
 
     def test_a_note_is_identified_by_its_published_time(self):
-        # NdjsonImporter keys a note on (owner, item, created_time) because a
-        # user may hold several notes on one item. Re-importing the same
-        # archive must therefore not stack copies, in either mode.
+        """NdjsonImporter keys a note on (owner, item, created_time) because a
+        user may hold several notes on one item. Re-importing the same archive
+        must therefore not stack copies, in either mode."""
         note = {
             "type": "Note",
             "metadata": {},
@@ -250,8 +250,8 @@ class TestDoubakImportMode:
     # -- the parent importer is untouched ----------------------------------
 
     def test_ndjson_importer_is_unaffected_by_the_override(self):
-        # NdjsonImporter has no mode, so it must keep merging even when handed
-        # an archive that the subclass would overwrite with
+        """NdjsonImporter has no mode, so it must keep merging even when handed
+        an archive that the subclass would overwrite with"""
         self.existing_mark(status=ShelfType.WISHLIST, published=NEW)
         with TemporaryDirectory() as d:
             path = write_archive(
@@ -275,16 +275,17 @@ class TestDoubakImportMode:
         assert importer.metadata["processed"] == 4
 
     def test_progress_is_saved_as_it_goes_not_only_at_the_end(self):
-        # the poller re-reads the row; counters kept only in memory would leave
-        # the bar at zero for the whole run and then jump straight to done
+        """the poller re-reads the row; counters kept only in memory would
+        leave the bar at zero for the whole run and then jump straight to done
+        """
         importer = self.run([self.shelf_member(), self.rating(8)])
         stored = DoubakImporter.objects.get(pk=importer.pk)
         assert stored.metadata["processed"] == 2
         assert stored.metadata["total"] == 2
 
     def test_status_endpoint_renders_the_bar(self, client):
-        # run() is called directly rather than through _execute, so the task is
-        # still pending -- which is what the mid-run render looks like
+        """run() is called directly rather than through _execute, so the task
+        is still pending -- which is what the mid-run render looks like"""
         importer = self.run([self.shelf_member(), self.rating(8)])
         client.force_login(self.user, backend="mastodon.auth.OAuth2Backend")
         response = client.get(reverse("users:user_task_status", args=[importer.type]))
@@ -292,8 +293,8 @@ class TestDoubakImportMode:
         assert '<progress value="2" max="2">' in response.content.decode()
 
     def test_type_is_the_string_the_status_view_matches_on(self):
-        # users.views.data.user_task_status matches on this literal; a rename
-        # would leave the progress bar permanently blank and raise nothing
+        """users.views.data.user_task_status matches on this literal; a rename
+        would leave the progress bar permanently blank and raise nothing"""
         importer = DoubakImporter.create(user=self.user, file="x.zip", visibility=0)
         assert importer.type == "journal.doubakimporter"
 
@@ -307,8 +308,8 @@ class TestDoubakValidateFile:
                 assert DoubakImporter.validate_file(f) is True
 
     def test_rejects_a_zip_without_one(self):
-        # the upload page's own format detection looks for exactly this name,
-        # so a zip without it could not be submitted through the UI either
+        """the upload page's own format detection looks for exactly this name,
+        so a zip without it could not be submitted through the UI either"""
         with TemporaryDirectory() as d:
             path = os.path.join(d, "other.zip")
             with zipfile.ZipFile(path, "w") as zipref:
@@ -317,8 +318,8 @@ class TestDoubakValidateFile:
                 assert DoubakImporter.validate_file(f) is False
 
     def test_rejects_a_csv_archive(self):
-        # a Doubak CSV export is a different shape; NdjsonImporter would find
-        # no journal.ndjson and fail with a bare message instead of a 400
+        """a Doubak CSV export is a different shape; NdjsonImporter would find
+        no journal.ndjson and fail with a bare message instead of a 400"""
         with TemporaryDirectory() as d:
             path = os.path.join(d, "csv.zip")
             with zipfile.ZipFile(path, "w") as zipref:
@@ -335,11 +336,11 @@ class TestDoubakValidateFile:
                 assert DoubakImporter.validate_file(f) is False
 
     def test_rejects_a_nested_journal(self):
-        # run() opens <tempdir>/journal.ndjson and nothing else, so a nested
-        # copy would validate and then import nothing. The upload page's own
-        # detection keys on the same root-level name (`name === 'journal.ndjson'`),
-        # so this is not a hypothetical shape -- it is what a user gets by
-        # zipping the folder instead of its contents.
+        """run() opens <tempdir>/journal.ndjson and nothing else, so a nested
+        copy would validate and then import nothing. The upload page's own
+        detection keys on the same root-level name (`name ===
+        'journal.ndjson'`), so this is not a hypothetical shape -- it is what a
+        user gets by zipping the folder instead of its contents."""
         with TemporaryDirectory() as d:
             path = os.path.join(d, "nested.zip")
             with zipfile.ZipFile(path, "w") as zipref:
@@ -408,8 +409,8 @@ class TestImportDoubakView:
         assert self.latest().metadata["mode"] == DoubakImporter.MERGE
 
     def test_visibility_reaches_the_task(self, client):
-        # the stock NeoDB archive form hides its visibility radios as soon as
-        # it detects ndjson, so this form is the only way to pick one
+        """the stock NeoDB archive form hides its visibility radios as soon as
+        it detects ndjson, so this form is the only way to pick one"""
         with TemporaryDirectory() as d:
             path = write_archive(d, [], [])
             self.upload(client, path, visibility="2")
@@ -625,8 +626,8 @@ class TestDoubakAgreesWithCsv:
         assert csv_side == nd_side
 
     def test_the_comparison_is_not_vacuous(self):
-        # if either import silently did nothing, the dicts would still match --
-        # so pin that both actually carried the awkward payload through
+        """if either import silently did nothing, the dicts would still match
+        -- so pin that both actually carried the awkward payload through"""
         csv_side, nd_side = self.run_both()
         for side in (csv_side, nd_side):
             assert side["shelf_type"] == ShelfType.COMPLETE
@@ -638,16 +639,16 @@ class TestDoubakAgreesWithCsv:
             assert side["review_body"] == self.review_body
 
     def test_tags_survive_the_format_change(self):
-        # CSV carries tags on the mark row; NDJSON has no such field and needs
-        # separate Tag/TagMember records. Emitting only ShelfMember loses every
-        # tag with no error at all, which is why this is asserted on its own.
+        """CSV carries tags on the mark row; NDJSON has no such field and needs
+        separate Tag/TagMember records. Emitting only ShelfMember loses every
+        tag with no error at all, which is why this is asserted on its own."""
         csv_side, nd_side = self.run_both()
         assert nd_side["tags"] == csv_side["tags"] != []
 
     def test_the_marked_date_is_the_same_day_on_both_sides(self):
-        # CSV reads `timestamp`, NDJSON reads `content.published`. Getting the
-        # key wrong on either side stamps the record with the import time,
-        # which reads as a plausible date rather than as an error.
+        """CSV reads `timestamp`, NDJSON reads `content.published`. Getting the
+        key wrong on either side stamps the record with the import time, which
+        reads as a plausible date rather than as an error."""
         csv_side, nd_side = self.run_both()
         assert csv_side["created_time"] == nd_side["created_time"]
         assert csv_side["created_time"].year == 2019
@@ -694,7 +695,7 @@ class TestDoubakReadsNeodbsOwnArchive:
         return exporter.metadata["file"]
 
     def test_validate_file_accepts_what_neodb_itself_exports(self):
-        # the one assertion that cannot drift: it uses the real producer
+        """the one assertion that cannot drift: it uses the real producer"""
         with open(self.exported(), "rb") as f:
             assert DoubakImporter.validate_file(f) is True
 
@@ -747,9 +748,9 @@ class TestDoubakReadsNeodbsOwnArchive:
         assert Rating.objects.get(owner=dest, item=self.book).grade == 8
 
     def test_import_funcs_are_inherited_untouched(self):
-        # the subclass overrides one method; dispatching is not its business.
-        # A handler dropped here would count records as skipped and still
-        # report success, so pin that the two tables are the same object shape.
+        """the subclass overrides one method; dispatching is not its business.
+        A handler dropped here would count records as skipped and still report
+        success, so pin that the two tables are the same object shape."""
         importer = DoubakImporter.create(user=self.dest, file="x.zip", visibility=0)
         parent = NdjsonImporter.create(user=self.source, file="x.zip", visibility=0)
         assert set(importer.import_funcs()) == set(parent.import_funcs())
@@ -800,9 +801,10 @@ class TestDoubakReadsWhatDoubakWrites:
             return importer
 
     def test_shelf_log_carries_the_star_of_that_day(self):
-        # Douban overwrites a mark's rating on every edit and keeps no history;
-        # a broadcast is frozen at post time. So the log's rating_grade is a
-        # different fact from the mark's, and losing it loses the only record.
+        """Douban overwrites a mark's rating on every edit and keeps no
+        history; a broadcast is frozen at post time. So the log's rating_grade
+        is a different fact from the mark's, and losing it loses the only
+        record."""
         importer = self.run(
             [{"id": self.url}],
             [
@@ -833,8 +835,8 @@ class TestDoubakReadsWhatDoubakWrites:
         assert log.comment_text == "then a 5"
 
     def test_a_mark_with_no_published_still_imports(self):
-        # 8 of 2950 real marks carry no date at all. Omitting the key is the
-        # honest encoding; inventing one would stamp a plausible lie.
+        """8 of 2950 real marks carry no date at all. Omitting the key is the
+        honest encoding; inventing one would stamp a plausible lie."""
         importer = self.run(
             [{"id": self.url}],
             [
@@ -853,10 +855,10 @@ class TestDoubakReadsWhatDoubakWrites:
         assert Mark(self.owner, self.movie).shelf_type == ShelfType.WISHLIST
 
     def test_an_item_resolves_through_external_resources(self):
-        # Doubak writes the Douban URL as the catalog id and the IMDb URL
-        # alongside it. IMDb sorts ahead of Douban in _PREFERRED_SITES, so a
-        # catalogued item is found without any request going out -- which is
-        # also what keeps a work resolvable after Douban deletes its page.
+        """Doubak writes the Douban URL as the catalog id and the IMDb URL
+        alongside it. IMDb sorts ahead of Douban in _PREFERRED_SITES, so a
+        catalogued item is found without any request going out -- which is also
+        what keeps a work resolvable after Douban deletes its page."""
         importer = self.run(
             [
                 {
@@ -902,8 +904,8 @@ class TestDoubakReadsWhatDoubakWrites:
         assert collection.get_member_for_item(self.movie).note == "A$49.21"
 
     def test_a_private_doulist_arrives_restricted(self):
-        # the upload page hides its visibility radios for ndjson, so a private
-        # 豆列 can only stay private by saying so in the file
+        """the upload page hides its visibility radios for ndjson, so a private
+        豆列 can only stay private by saying so in the file"""
         self.run(
             [{"id": self.url}],
             [
@@ -946,8 +948,8 @@ class TestDoubakReadsWhatDoubakWrites:
         assert Article.objects.get(owner=self.owner, title="日记").body == "- 一\n- 二"
 
     def test_a_record_type_we_do_not_emit_is_counted_not_fatal(self):
-        # a future Doubak writing something this NeoDB does not know must not
-        # stall the progress bar short of 100%
+        """a future Doubak writing something this NeoDB does not know must not
+        stall the progress bar short of 100%"""
         importer = self.run(
             [{"id": self.url}],
             [
@@ -993,24 +995,24 @@ class TestDoubakReadsWhatDoubakWrites:
         ]
 
     def test_an_edit_made_after_the_first_import_replays(self):
-        # Douban's marked_at is the day a mark was made and does not move when
-        # the comment is rewritten, so published is identical in both archives
-        # and updated is the only thing that can carry the edit.
+        """Douban's marked_at is the day a mark was made and does not move when
+        the comment is rewritten, so published is identical in both archives
+        and updated is the only thing that can carry the edit."""
         self.run([{"id": self.url}], self.mark_with_comment("first", updated=OLD))
         self.run([{"id": self.url}], self.mark_with_comment("second", updated=NEW))
         assert Comment.objects.get(owner=self.owner, item=self.movie).text == "second"
 
     def test_without_updated_the_same_edit_is_dropped(self):
-        # the control for the test above: this is what the exporter did before
-        # it emitted updated, and it fails silently -- the import reports
-        # success and the new comment is simply not there
+        """the control for the test above: this is what the exporter did before
+        it emitted updated, and it fails silently -- the import reports success
+        and the new comment is simply not there"""
         self.run([{"id": self.url}], self.mark_with_comment("first"))
         self.run([{"id": self.url}], self.mark_with_comment("second"))
         assert Comment.objects.get(owner=self.owner, item=self.movie).text == "first"
 
     def test_reimporting_an_unchanged_archive_changes_nothing(self):
-        # updated must not move when a record is merely observed again, or
-        # every import rewrites everything and stamps it with the import time
+        """updated must not move when a record is merely observed again, or
+        every import rewrites everything and stamps it with the import time"""
         self.run([{"id": self.url}], self.mark_with_comment("only", updated=OLD))
         before = Comment.objects.get(owner=self.owner, item=self.movie).edited_time
         importer = self.run(
@@ -1022,10 +1024,11 @@ class TestDoubakReadsWhatDoubakWrites:
         assert importer.metadata["skipped"] >= 1
 
     def test_a_collection_keeps_its_identity_across_exports(self):
-        # import_collection matches on (owner, title, created_time), and
-        # created_time is published. A published that moved with every crawl
-        # would make the second import build a second collection of the same
-        # name rather than update the first.
+        """import_collection matches on (owner, title, created_time), and
+        created_time is published. A published that moved with every crawl
+        would make the second import build a second collection of the same name
+        rather than update the first."""
+
         def archive(updated):
             return [
                 {
@@ -1056,8 +1059,8 @@ class TestDoubakIsWiredIn:
         self.user = User.register(email="wired@test.com", username="doubak_wired")
 
     def test_the_proxy_model_and_task_type_are_migrated(self):
-        # a missing (or misnumbered) migration does not raise on its own --
-        # the task simply stores a type the database will not accept
+        """a missing (or misnumbered) migration does not raise on its own --
+        the task simply stores a type the database will not accept"""
         from django.apps import apps
 
         assert apps.get_model("journal", "DoubakImporter") is DoubakImporter
@@ -1068,8 +1071,8 @@ class TestDoubakIsWiredIn:
         assert "journal.doubakimporter" in choices
 
     def test_the_data_page_renders_the_upload_form(self, client):
-        # the form's action, its file input and both mode values are read by
-        # string in the view; a typo in the template silently posts a default
+        """the form's action, its file input and both mode values are read by
+        string in the view; a typo in the template silently posts a default"""
         client.force_login(self.user, backend="mastodon.auth.OAuth2Backend")
         body = client.get(reverse("users:data")).content.decode()
         assert reverse("users:import_doubak") in body
@@ -1078,8 +1081,8 @@ class TestDoubakIsWiredIn:
         assert "doubak.com" in body
 
     def test_an_out_of_range_mode_falls_back_to_merge(self):
-        # the view casts whatever the form posted; anything that is not
-        # OVERWRITE must be treated as the safe option, not as overwrite
+        """the view casts whatever the form posted; anything that is not
+        OVERWRITE must be treated as the safe option, not as overwrite"""
         importer = DoubakImporter.create(
             user=self.user, file="x.zip", visibility=0, mode=7
         )
