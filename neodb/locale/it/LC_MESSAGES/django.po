@@ -8700,7 +8700,7 @@ msgstr "Gestione Dati"
 
 #: users/templates/users/data.html:27
 msgid "Import Marks and Reviews from Douban (Doubak)"
-msgstr ""
+msgstr "Importa Interazioni e Valutazioni da Douban (Doubak)"
 
 #: users/templates/users/data.html:31
 msgid ""

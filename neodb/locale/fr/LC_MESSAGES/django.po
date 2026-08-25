@@ -8691,7 +8691,7 @@ msgstr "Gestion des données"
 
 #: users/templates/users/data.html:27
 msgid "Import Marks and Reviews from Douban (Doubak)"
-msgstr ""
+msgstr "Importer les interactions & avis depuis Douban (Doubak)"
 
 #: users/templates/users/data.html:31
 msgid ""

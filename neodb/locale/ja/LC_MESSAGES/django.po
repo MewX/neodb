@@ -7902,7 +7902,7 @@ msgstr "データ管理"
 
 #: users/templates/users/data.html:27
 msgid "Import Marks and Reviews from Douban (Doubak)"
-msgstr ""
+msgstr "豆瓣からマークとレビューをインポート（Doubak）"
 
 #: users/templates/users/data.html:31
 msgid ""

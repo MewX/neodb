@@ -8712,7 +8712,7 @@ msgstr "Daten Verwaltung"
 
 #: users/templates/users/data.html:27
 msgid "Import Marks and Reviews from Douban (Doubak)"
-msgstr ""
+msgstr "Importiere Markierungen und Rezensionen von Douban (Doubak)"
 
 #: users/templates/users/data.html:31
 msgid ""
