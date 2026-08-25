@@ -134,7 +134,7 @@ class TestDoubakImportMode:
         )
         return mark
 
-    # -- marks ------------------------------------------------------------
+    # --- marks ------------------------------------------------------------
 
     def test_mode_defaults_to_merge(self):
         importer = DoubakImporter.create(user=self.user, file="x.zip", visibility=0)
@@ -161,7 +161,7 @@ class TestDoubakImportMode:
         self.run([self.shelf_member(status="complete", published=NEW)])
         assert Mark(self.owner, self.movie).shelf_type == ShelfType.COMPLETE
 
-    # -- ratings and comments ---------------------------------------------
+    # --- ratings and comments ---------------------------------------------
 
     def test_overwrite_replaces_a_newer_rating(self):
         Rating.objects.create(
@@ -194,7 +194,7 @@ class TestDoubakImportMode:
             == "from the archive"
         )
 
-    # -- reviews -----------------------------------------------------------
+    # --- reviews ----------------------------------------------------------
 
     def test_merge_keeps_the_newer_existing_review(self):
         Review.objects.create(
@@ -225,7 +225,7 @@ class TestDoubakImportMode:
             "from the archive"
         )
 
-    # -- notes -------------------------------------------------------------
+    # --- notes ------------------------------------------------------------
 
     def test_a_note_is_identified_by_its_published_time(self):
         """NdjsonImporter keys a note on (owner, item, created_time) because a
@@ -247,7 +247,7 @@ class TestDoubakImportMode:
         self.run([note], mode=DoubakImporter.OVERWRITE)
         assert Note.objects.filter(owner=self.owner, item=self.movie).count() == 1
 
-    # -- the parent importer is untouched ----------------------------------
+    # --- the parent importer is untouched ---------------------------------
 
     def test_ndjson_importer_is_unaffected_by_the_override(self):
         """NdjsonImporter has no mode, so it must keep merging even when handed
@@ -260,7 +260,7 @@ class TestDoubakImportMode:
             NdjsonImporter.create(user=self.user, file=path, visibility=0).run()
         assert Mark(self.owner, self.movie).shelf_type == ShelfType.WISHLIST
 
-    # -- progress ----------------------------------------------------------
+    # --- progress ---------------------------------------------------------
 
     def test_every_record_is_counted(self):
         importer = self.run(
