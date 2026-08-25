@@ -425,6 +425,34 @@ class TestImportDoubakView:
         assert resp.status_code == 400
         assert self.latest() is None
 
+    def test_the_sibling_csv_archive_is_rejected(self, client):
+        """Doubak writes neodb-ndjson-import.zip and neodb-import.zip into the
+        same folder, so uploading the CSV one here is the likely mistake, not
+        a hypothetical. It must come back 400 rather than queue a task that
+        fails later in the worker with an opaque message."""
+        with TemporaryDirectory() as d:
+            path = os.path.join(d, "neodb-import.zip")
+            with zipfile.ZipFile(path, "w") as zipref:
+                for name in ("movie_mark.csv", "book_mark.csv", "movie_review.csv"):
+                    zipref.writestr(name, "title,info,links\n")
+            resp = self.upload(client, path, visibility="0")
+        assert resp.status_code == 400
+        assert self.latest() is None
+
+    def test_a_doufen_workbook_is_rejected(self, client):
+        """An .xlsx *is* a zip, so `is_zipfile` says yes and only the member
+        list can tell the two apart. The other Douban importer takes exactly
+        this file, which makes it the second likely mis-upload."""
+        with TemporaryDirectory() as d:
+            path = os.path.join(d, "douban.xlsx")
+            with zipfile.ZipFile(path, "w") as zipref:
+                zipref.writestr("[Content_Types].xml", "<Types/>")
+                zipref.writestr("xl/workbook.xml", "<workbook/>")
+            assert zipfile.is_zipfile(path), "非空断言：这个样本得真是个 zip"
+            resp = self.upload(client, path, visibility="0")
+        assert resp.status_code == 400
+        assert self.latest() is None
+
     def test_get_redirects_instead_of_importing(self, client):
         client.force_login(self.user, backend="mastodon.auth.OAuth2Backend")
         resp = client.get(reverse("users:import_doubak"))
