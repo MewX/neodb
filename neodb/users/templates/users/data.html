@@ -24,7 +24,7 @@
       <div class="grid__main">
         <article>
           <details>
-            <summary>{% trans 'Import Marks and Reviews from Doubak' %}</summary>
+            <summary>{% trans 'Import Marks and Reviews from Douban (Doubak)' %}</summary>
             <form hx-post="{% url 'users:import_doubak' %}"
                   enctype="multipart/form-data">
               {% csrf_token %}
@@ -81,7 +81,7 @@
         </article>
         <article>
           <details>
-            <summary>{% trans 'Import Marks and Reviews from Douban' %}</summary>
+            <summary>{% trans 'Import Marks and Reviews from Douban (Doufen)' %}</summary>
             <form hx-post="{% url 'users:import_douban' %}"
                   enctype="multipart/form-data">
               {% csrf_token %}
