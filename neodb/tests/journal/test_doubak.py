@@ -350,6 +350,33 @@ class TestDoubakValidateFile:
     def test_rejects_a_missing_file(self):
         assert DoubakImporter.validate_file(None) is False
 
+    def test_leaves_the_file_pointer_at_the_start(self):
+        """Whatever it read, the caller gets the file back as it handed it over.
+
+        ``import_doubak`` validates the upload and *then* saves it, so a
+        pointer left at the end would save an empty file. It does not today,
+        because ``UploadedFile.chunks()`` rewinds -- which makes this a
+        correctness property of somebody else's code rather than of ours.
+        The parent importers both seek explicitly; this pins that we do too.
+        """
+        with TemporaryDirectory() as d:
+            path = write_archive(d, [], [])
+            with open(path, "rb") as f:
+                f.seek(17)  # not at the start when validation begins
+                assert DoubakImporter.validate_file(f) is True
+                assert f.tell() == 0
+                assert f.read(2) == b"PK"  # and it really is readable from there
+
+    def test_leaves_the_file_pointer_at_the_start_when_it_rejects(self):
+        with TemporaryDirectory() as d:
+            path = os.path.join(d, "not.zip")
+            with open(path, "w") as f:
+                f.write("not a zip at all")
+            with open(path, "rb") as f:
+                f.seek(5)
+                assert DoubakImporter.validate_file(f) is False
+                assert f.tell() == 0
+
 
 @pytest.mark.django_db(databases="__all__")
 class TestImportDoubakView:

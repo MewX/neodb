@@ -35,16 +35,31 @@ class DoubakImporter(NdjsonImporter):
 
     @classmethod
     def validate_file(cls, uploaded_file) -> bool:
-        """Whether the upload is a zip holding a journal.ndjson."""
+        """Whether the upload is a zip holding a journal.ndjson.
+
+        The seeks are the pattern :class:`NdjsonImporter` and
+        :class:`CsvImporter` already use, and they are not decoration: this
+        reads the upload before the view saves it, and whether that read
+        leaves the pointer where it found it is the caller's business, not
+        Django's. ``chunks()`` happens to rewind today.
+        """
         try:
-            with zipfile.ZipFile(uploaded_file) as zipref:
+            if not zipfile.is_zipfile(uploaded_file):
+                return False
+            uploaded_file.seek(0)
+            with zipfile.ZipFile(uploaded_file, "r") as zipref:
                 return cls.JournalFile in zipref.namelist()
         except Exception as e:
             logger.error(
                 f"unable to validate zip file {uploaded_file}",
                 extra={"exception": e},
             )
-        return False
+            return False
+        finally:
+            try:
+                uploaded_file.seek(0)
+            except Exception:
+                pass
 
     @property
     def overwrite(self) -> bool:
